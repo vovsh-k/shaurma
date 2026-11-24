@@ -52,8 +52,8 @@ body {
 .page { display: none; }
 .page.active { display: block; animation: pageIn .38s ease; }
 @keyframes pageIn {
-  0% { transform: scale(.92); opacity: 0; }
-  100% { transform: scale(1); opacity: 1; }
+  0% { transform: translateX(26px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
 }
 .stamp { font-size: 56px; line-height: 1; }
 h1 {
@@ -130,6 +130,17 @@ input[type=text]:focus { border-color: var(--accent); }
   position: relative;
   transition: left .22s ease, top .22s ease;
 }
+.back {
+  font-family: inherit;
+  font-size: 14px;
+  color: #b08a63;
+  background: none;
+  border: none;
+  cursor: pointer;
+  margin-top: 16px;
+}
+.back:hover { color: var(--accent); }
+.lead { font-size: 17px; line-height: 1.55; margin-bottom: 12px; }
 .hint { font-size: 13px; color: #b08a63; margin-top: 16px; min-height: 18px; }
 .error { color: #c0392b; font-size: 14px; margin-top: 12px; }
 .hidden { display: none !important; }
@@ -150,9 +161,18 @@ input[type=text]:focus { border-color: var(--accent); }
 <div class="bg" id="bg"></div>
 
 <div class="card">
-  <section class="page active" id="pageAsk">
+  <section class="page active" id="page1">
     <div class="stamp">🌯</div>
     <h1>Погнали за шаурмой?</h1>
+    <div class="cta-row">
+      <button class="cta" id="startBtn">Погнали 🌯</button>
+      <button class="dodge" id="dodgeBtn">Нет 🙈</button>
+    </div>
+  </section>
+
+  <section class="page" id="page2">
+    <div class="stamp">🌯</div>
+    <h1>Когда идём?</h1>
 
     <div class="step-label">Выбери день</div>
     <div class="chips" id="dayChips"></div>
@@ -163,17 +183,17 @@ input[type=text]:focus { border-color: var(--accent); }
 
     <div class="cta-row">
       <button class="cta" id="yesBtn" disabled>Погнали 🌯</button>
-      <button class="dodge" id="dodgeBtn">Нет 🙈</button>
     </div>
     <div class="hint" id="hint">Выбери день и время — кнопка оживёт 😎</div>
     <div class="error hidden" id="errorBox"></div>
+    <button class="back" id="backBtn">← назад</button>
   </section>
 
   <section class="page" id="pageDone">
     <div class="stamp">🎉</div>
     <h1>Ура!</h1>
-    <p class="lead" id="doneText" style="font-size:17px;line-height:1.55;margin-bottom:12px;"></p>
-    <p style="font-size:17px;line-height:1.55;">Шаурма уже ждёт. До встречи! 🌯😋</p>
+    <p class="lead" id="doneText"></p>
+    <p class="lead">Шаурма уже ждёт. До встречи! 🌯😋</p>
   </section>
 </div>
 
@@ -198,7 +218,15 @@ const TIME_SLOTS = [
 ];
 const DODGE_LABELS = ['Нет 🙈', 'Неа 🙅‍♀️', 'Не хочу 😝', 'Мимо 😌', 'Даже не проси 🥺', 'Ну уж нет 😤'];
 
-const state = { day: null, time: null };
+const state = { day: null, time: null, page: 1 };
+
+function goTo(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const target = page === 'done' ? document.getElementById('pageDone') : document.getElementById('page' + page);
+  target.classList.add('active');
+  state.page = page;
+  document.getElementById('dodgeBtn').classList.toggle('hidden', page !== 1);
+}
 
 function buildDays() {
   const wrap = document.getElementById('dayChips');
@@ -295,9 +323,7 @@ async function submit() {
     const ok = await sendToTelegram('🌯 ШАУРМА-ПРИГЛАШЕНИЕ\nОна сказала да! 😋\nКогда: ' + when);
     if (!ok) throw new Error('telegram');
     document.getElementById('doneText').textContent = 'Шаурма ' + when + ' — уже в моём календаре.';
-    document.getElementById('pageAsk').classList.remove('active');
-    document.getElementById('pageDone').classList.add('active');
-    document.getElementById('dodgeBtn').classList.add('hidden');
+    goTo('done');
     confetti();
   } catch (e) {
     btn.disabled = false;
@@ -340,12 +366,15 @@ function initDodge() {
   });
 }
 
+document.getElementById('startBtn').addEventListener('click', () => goTo(2));
+document.getElementById('backBtn').addEventListener('click', () => goTo(1));
 document.getElementById('customTime').addEventListener('input', refresh);
 document.getElementById('yesBtn').addEventListener('click', submit);
 buildDays();
 buildTimes();
 spawnBg();
 initDodge();
+goTo(1);
 </script>
 </body>
 </html>
