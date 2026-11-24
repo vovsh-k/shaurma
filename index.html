@@ -62,8 +62,47 @@ h1 {
   margin: 16px 0 10px;
   color: var(--accent);
 }
-.lead { font-size: 17px; line-height: 1.55; margin-bottom: 26px; }
-.cta-row { display: flex; flex-direction: column; gap: 12px; align-items: center; }
+.step-label {
+  font-size: 13px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: #b08a63;
+  margin: 22px 0 10px;
+}
+.chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+.chip {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  background: var(--cream);
+  border: 1.5px solid var(--accent-soft);
+  border-radius: 999px;
+  padding: 9px 15px;
+  cursor: pointer;
+  transition: all .18s ease;
+}
+.chip:hover { border-color: var(--accent); transform: translateY(-1px); }
+.chip.selected {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(224, 123, 42, .35);
+}
+.chip small { display: block; font-size: 11.5px; opacity: .75; margin-top: 2px; }
+input[type=text] {
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--ink);
+  width: 100%;
+  margin-top: 12px;
+  padding: 11px 14px;
+  border: 1.5px solid var(--accent-soft);
+  border-radius: 14px;
+  background: var(--cream);
+  outline: none;
+}
+input[type=text]:focus { border-color: var(--accent); }
+.cta-row { display: flex; flex-direction: column; gap: 12px; align-items: center; margin-top: 26px; }
 .cta {
   font-family: inherit;
   font-size: 19px;
@@ -114,19 +153,27 @@ h1 {
   <section class="page active" id="pageAsk">
     <div class="stamp">🌯</div>
     <h1>Погнали за шаурмой?</h1>
-    <p class="lead">Ты, я и самая вкусная шаурма в городе. Соус побольше, разговоры подольше.</p>
+
+    <div class="step-label">Выбери день</div>
+    <div class="chips" id="dayChips"></div>
+
+    <div class="step-label">Примерное время</div>
+    <div class="chips" id="timeChips"></div>
+    <input type="text" id="customTime" class="hidden" maxlength="60" placeholder="Напиши, как тебе удобно, например «после 19:00»">
+
     <div class="cta-row">
-      <button class="cta" id="yesBtn">Погнали 🌯</button>
+      <button class="cta" id="yesBtn" disabled>Погнали 🌯</button>
       <button class="dodge" id="dodgeBtn">Нет 🙈</button>
     </div>
-    <div class="hint" id="hint">Нажми «Погнали» — и я всё узнаю 😎</div>
+    <div class="hint" id="hint">Выбери день и время — кнопка оживёт 😎</div>
     <div class="error hidden" id="errorBox"></div>
   </section>
 
   <section class="page" id="pageDone">
     <div class="stamp">🎉</div>
     <h1>Ура!</h1>
-    <p class="lead">Шаурма уже ждёт. До встречи! 🌯😋</p>
+    <p class="lead" id="doneText" style="font-size:17px;line-height:1.55;margin-bottom:12px;"></p>
+    <p style="font-size:17px;line-height:1.55;">Шаурма уже ждёт. До встречи! 🌯😋</p>
   </section>
 </div>
 
@@ -136,7 +183,67 @@ const CONFIG = {
   chatId: '949424589'
 };
 
+const DAYS = [
+  { label: 'Среда', date: '25 ноября', value: 'ср, 25 ноября' },
+  { label: 'Четверг', date: '26 ноября', value: 'чт, 26 ноября' },
+  { label: 'Пятница', date: '27 ноября', value: 'пт, 27 ноября' },
+  { label: 'Суббота', date: '28 ноября', value: 'сб, 28 ноября' },
+  { label: 'Воскресенье', date: '29 ноября', value: 'вс, 29 ноября' }
+];
+const TIME_SLOTS = [
+  { id: 'morning', label: 'Утро ☀️', sub: '10:00–12:00' },
+  { id: 'day', label: 'День 🌤', sub: '12:00–17:00' },
+  { id: 'evening', label: 'Вечер 🌙', sub: '17:00–21:00' },
+  { id: 'custom', label: 'Свой вариант ✏️', sub: '' }
+];
 const DODGE_LABELS = ['Нет 🙈', 'Неа 🙅‍♀️', 'Не хочу 😝', 'Мимо 😌', 'Даже не проси 🥺', 'Ну уж нет 😤'];
+
+const state = { day: null, time: null };
+
+function buildDays() {
+  const wrap = document.getElementById('dayChips');
+  DAYS.forEach(d => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.innerHTML = d.label + '<small>' + d.date + '</small>';
+    btn.addEventListener('click', () => {
+      wrap.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+      btn.classList.add('selected');
+      state.day = d.value;
+      refresh();
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+function buildTimes() {
+  const wrap = document.getElementById('timeChips');
+  TIME_SLOTS.forEach(slot => {
+    const btn = document.createElement('button');
+    btn.className = 'chip';
+    btn.innerHTML = slot.label + (slot.sub ? '<small>' + slot.sub + '</small>' : '');
+    btn.addEventListener('click', () => {
+      wrap.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+      btn.classList.add('selected');
+      state.time = slot.id;
+      document.getElementById('customTime').classList.toggle('hidden', slot.id !== 'custom');
+      refresh();
+    });
+    wrap.appendChild(btn);
+  });
+}
+
+function timeText() {
+  if (state.time === 'custom') return document.getElementById('customTime').value.trim();
+  const slot = TIME_SLOTS.find(s => s.id === state.time);
+  return slot ? slot.label + ' (' + slot.sub + ')' : '';
+}
+
+function refresh() {
+  const ok = state.day && state.time && (state.time !== 'custom' || document.getElementById('customTime').value.trim());
+  document.getElementById('yesBtn').disabled = !ok;
+  document.getElementById('hint').textContent = ok ? 'Отлично! Осталось нажать «Погнали» 😎' : 'Выбери день и время — кнопка оживёт 😎';
+}
 
 function spawnBg() {
   const bg = document.getElementById('bg');
@@ -183,9 +290,11 @@ async function submit() {
   btn.disabled = true;
   btn.textContent = 'Отправляю… 🌯';
   err.classList.add('hidden');
+  const when = state.day + ' · ' + timeText();
   try {
-    const ok = await sendToTelegram('🌯 ШАУРМА-ПРИГЛАШЕНИЕ\nОна сказала да! Погнали за шаурмой 😋');
+    const ok = await sendToTelegram('🌯 ШАУРМА-ПРИГЛАШЕНИЕ\nОна сказала да! 😋\nКогда: ' + when);
     if (!ok) throw new Error('telegram');
+    document.getElementById('doneText').textContent = 'Шаурма ' + when + ' — уже в моём календаре.';
     document.getElementById('pageAsk').classList.remove('active');
     document.getElementById('pageDone').classList.add('active');
     document.getElementById('dodgeBtn').classList.add('hidden');
@@ -231,7 +340,10 @@ function initDodge() {
   });
 }
 
+document.getElementById('customTime').addEventListener('input', refresh);
 document.getElementById('yesBtn').addEventListener('click', submit);
+buildDays();
+buildTimes();
 spawnBg();
 initDodge();
 </script>
